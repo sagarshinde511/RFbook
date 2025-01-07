@@ -24,7 +24,7 @@ def fetch_data(book_id):
         if connection.is_connected():
             cursor = connection.cursor(dictionary=True)
             # Query to fetch book information
-            query = "SELECT BookName, Author, InStock, AvailableStock FROM BookInfo WHERE ID = %s"
+            query = "SELECT BookName, Author, InStock, AvailableStock FROM BooksInfo WHERE ID = %s"
             cursor.execute(query, (book_id,))
             result = cursor.fetchone()
             return result
