@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 import mysql.connector
 from mysql.connector import Error
-bid = 0
+
 # Database connection function
 def create_connection():
     try:
@@ -38,55 +38,17 @@ def read_qr_code_from_camera():
         value, points, _ = qr_detector.detectAndDecode(frame)
 
         if value:
-            st.success(f"Book ID is : {value}")
-            bid = int(value)
-            if points is not None:
-                # Draw a rectangle around the QR code
-                points = points[0].astype(int)
-                for i in range(4):
-                    cv2.line(frame, tuple(points[i]), tuple(points[(i + 1) % 4]), (0, 255, 0), 3)
+            st.success(f"Book ID is: {value}")
+            st.session_state["book_id"] = int(value)  # Store in session state
         else:
             st.warning("No QR Code detected.")
 
-        # Convert the frame back to RGB for Streamlit display
-        #frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        #st.image(frame, channels="RGB")
-# Streamlit app
-def ReadBook(bid):
-    #st.title("Book Information Viewer")
-    
-    # Connect to the database
-    connection = create_connection()
-    if connection:
-        # Fetch all IDs
-        #ids = fetch_ids(connection)
-        ids = 1
-        if ids:
-            # Select ID from dropdown
-            selected_id = st.selectbox("Select an ID:", ids)
-            if selected_id:
-                # Fetch information for the selected ID
-                book_info = fetch_info_by_id(connection, selected_id)
-                if book_info:
-                    # Display book information
-                    st.write("### Book Information")
-                    columns = ["ID", "Title", "Author", "Total Books", "Available Books"]  # Example columns
-                    for col, val in zip(columns, book_info):
-                        st.write(f"**{col}:** {val}")
-                else:
-                    st.warning("No information found for the selected ID.")
-        else:
-            st.warning("No IDs available in the BookInfo table.")
-        connection.close()
-    else:
-        st.error("Failed to connect to the database.")
 
-# Fetch information for a selected ID
-def fetch_info_by_id(connection, selected_id):
+def fetch_info_by_id(connection, book_id):
     try:
         cursor = connection.cursor()
         query = "SELECT * FROM BookInfo WHERE id = %s"
-        cursor.execute(query, (selected_id,))
+        cursor.execute(query, (book_id,))
         result = cursor.fetchone()
         cursor.close()
         return result
@@ -94,35 +56,46 @@ def fetch_info_by_id(connection, selected_id):
         st.error(f"Error fetching information: {e}")
         return None
 
-# Streamlit app
-def main():
-    #st.title("Book Information Viewer")
-    ids = bid
+
+def display_book_info():
+    st.title("Book Information Viewer")
+
+    # Check if book ID exists in session state
+    book_id = st.session_state.get("book_id")
+    if not book_id:
+        st.warning("No Book ID scanned yet. Please scan a QR code.")
+        return
+
     # Connect to the database
     connection = create_connection()
     if connection:
-        # Fetch all IDs
-        #ids = fetch_ids(connection)
-        #ids = 1
-        if ids:
-            # Select ID from dropdown
-            selected_id = st.selectbox("Select an ID:", ids)
-            if selected_id:
-                # Fetch information for the selected ID
-                book_info = fetch_info_by_id(connection, selected_id)
-                if book_info:
-                    # Display book information
-                    st.write("### Book Information")
-                    columns = ["ID", "Title", "Author", "Toatl Books", "Available Books"]  
-                    for col, val in zip(columns, book_info):
-                        st.write(f"**{col}:** {val}")
-                else:
-                    st.warning("No information found for the selected ID.")
+        book_info = fetch_info_by_id(connection, book_id)
+        if book_info:
+            st.write("### Book Information")
+            columns = ["ID", "Title", "Author", "Total Books", "Available Books"]
+            for col, val in zip(columns, book_info):
+                st.write(f"**{col}:** {val}")
         else:
-            st.warning("No IDs available in the BookInfo table.")
+            st.warning("No information found for the scanned Book ID.")
         connection.close()
     else:
         st.error("Failed to connect to the database.")
 
+
+def main():
+    # Initialize session state
+    if "book_id" not in st.session_state:
+        st.session_state["book_id"] = None
+
+    # Create app layout with tabs
+    tabs = st.tabs(["QR Code Scanner", "Book Information Viewer"])
+
+    with tabs[0]:
+        read_qr_code_from_camera()
+
+    with tabs[1]:
+        display_book_info()
+
+
 if __name__ == "__main__":
-    read_qr_code_from_camera()
+    main()
